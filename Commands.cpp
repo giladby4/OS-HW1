@@ -165,6 +165,35 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
+  //todo - search for < or <<, set the cout, and remove the last part from cmd_line
+  const std::regex pattern(R"(\s*(>>|>)\s*(\S+)\s*$)");
+  std::cmatch match;
+  std::streambuf* originalCoutBuffer = std::cout.rdbuf();
+  std::ofstream file;
+  std::string str_cmd(cmd_line);
+
+  if (std::regex_search(cmd_line, match, pattern)) {
+    if (match[1]==">"){
+      file.open(match[2], std::ios::trunc);
+      if (!file) {
+        std::cerr << "Failed to open file." << std::endl;
+        return;
+      }
+      std::cout.rdbuf(file.rdbuf());
+    }
+    if (match[1]==">>"){
+      file.open(match[2], std::ios::app);
+      if (!file) {
+        std::cerr << "Failed to open file." << std::endl;
+        return;
+      }
+      std::cout.rdbuf(file.rdbuf());
+    }
+  }
+
+  str_cmd.erase(match.position(0), match.length(0));
+  str_cmd=_trim(str_cmd);
+  cmd_line=str_cmd.c_str();
   Command* cmd= CreateCommand(cmd_line);
   cmd->execute();
     // TODO: Add your implementation here
@@ -172,6 +201,10 @@ void SmallShell::executeCommand(const char *cmd_line) {
     // Command* cmd = CreateCommand(cmd_line);
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
+  file.close();
+  std::cout.flush();
+  std::cout.rdbuf(originalCoutBuffer);
+
 }
 
 Command::Command(const char *cmd_line){
@@ -210,30 +243,6 @@ void GetCurrDirCommand::execute(){
   const size_t size=1024;
   char buffer[size];
   char* pwd=getcwd(buffer,size);
-
-  char **args=new char *[COMMAND_MAX_ARGS];
-  _parseCommandLine(cmd_line,args);
-  if(args[1]&&strcmp(args[1],">")==0){
-    std::ofstream file(args[2], std::ios::trunc);
-    if (file.is_open()) {
-      file << pwd<<endl;
-      file.close();
-    } else {
-      std::cerr << "Failed to open the file for writing." << std::endl;
-    }
-    return;
-  }
-  if(args[1]&&strcmp(args[1],">>")==0){
-    std::ofstream file(args[2], std::ios::app);
-    if (file.is_open()) {
-      file << pwd<<endl;
-      file.close();
-    } else {
-      std::cerr << "Failed to open the file for writing." << std::endl;
-    }
-    return;
-  }
-
   std::cout << pwd<<endl;
     return;
 
@@ -246,29 +255,7 @@ ShowPidCommand::ShowPidCommand(char const *cmd_line) : BuiltInCommand(cmd_line){
 
 void ShowPidCommand::execute(){
   int pid=getpid();
-  char **args=new char *[COMMAND_MAX_ARGS];
-  _parseCommandLine(cmd_line,args);
-    if(args[1]&&strcmp(args[1],">")==0){
-    std::ofstream file(args[2], std::ios::trunc);
-    if (file.is_open()) {
-      file <<"smash pid is " <<pid<<endl;
-      file.close();
-    } else {
-      std::cerr << "Failed to open the file for writing." << std::endl;
-    }
-    return;
-  }
-  if(args[1]&&strcmp(args[1],">>")==0){
-    std::ofstream file(args[2], std::ios::app);
-    if (file.is_open()) {
-      file <<"smash pid is " <<pid<<endl;
-      file.close();
-    } else {
-      std::cerr << "Failed to open the file for writing." << std::endl;
-    }
-    return;
-  }
-  std::cout <<"smash pid is " <<pid<<endl;
+  cout <<"smash pid is " <<pid<<endl;
 
 }
 
