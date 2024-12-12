@@ -7,7 +7,9 @@
 #include <iomanip>
 #include "Commands.h"
 #include <regex>
-#include <fstream>
+#include <iostream>
+#include <unistd.h>
+#include <fcntl.h>
 
 
 using namespace std;
@@ -165,29 +167,45 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 }
 
 void SmallShell::executeCommand(const char *cmd_line) {
+  int original_stdout = dup(STDOUT_FILENO);
+  if (original_stdout == -1) {
+      perror("Failed to duplicate stdout");
+      return ;
+  }
+  
   //todo - search for < or <<, set the cout, and remove the last part from cmd_line
-  const std::regex pattern(R"(\s*(>>|>)\s*(\S+)\s*$)");
+  const std::regex pattern(R"(\s*(>>|>)\s*(\S+)\s*&?$)");
   std::cmatch match;
-  std::streambuf* originalCoutBuffer = std::cout.rdbuf();
-  std::ofstream file;
   std::string str_cmd(cmd_line);
-
+  
   if (std::regex_search(cmd_line, match, pattern)) {
     if (match[1]==">"){
-      file.open(match[2], std::ios::trunc);
-      if (!file) {
-        std::cerr << "Failed to open file." << std::endl;
-        return;
-      }
-      std::cout.rdbuf(file.rdbuf());
+      int file = open(match[2].str().c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+      if (file == -1) {
+        perror("Failed to open file");
+        return ;
+      } 
+      if (dup2(file, STDOUT_FILENO) == -1) {
+        perror("Failed to redirect stdout");
+        close(file);
+        return ;
+      }  
+      close(file);
+ 
     }
     if (match[1]==">>"){
-      file.open(match[2], std::ios::app);
-      if (!file) {
-        std::cerr << "Failed to open file." << std::endl;
-        return;
+      int file = open(match[2].str().c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+      if (file == -1) {
+        perror("Failed to open file");
+        return ;
       }
-      std::cout.rdbuf(file.rdbuf());
+      if (dup2(file, STDOUT_FILENO) == -1) {
+        perror("Failed to redirect stdout");
+        close(file);
+        return ;
+      }
+      close(file);
+  
     }
   }
 
@@ -201,9 +219,13 @@ void SmallShell::executeCommand(const char *cmd_line) {
     // Command* cmd = CreateCommand(cmd_line);
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
-  file.close();
-  std::cout.flush();
-  std::cout.rdbuf(originalCoutBuffer);
+  if (dup2(original_stdout, STDOUT_FILENO) == -1) {
+      perror("Failed to restore stdout");
+      close(original_stdout);
+      return ;
+  }
+  close(original_stdout);
+
 
 }
 
@@ -214,6 +236,11 @@ Command::Command(const char *cmd_line){
 
 BuiltInCommand::BuiltInCommand(const char *cmd_line):Command(cmd_line){}
 
+const char * getPwd(){
+  const size_t size=1024;
+  char buffer[size];
+  return getcwd(buffer,size);
+}
 
 ChangePromptCommand::ChangePromptCommand(const char *cmd_line, const char **prompt) : BuiltInCommand(cmd_line) , prompt(prompt), newPrompt(nullptr){
   char **args=new char *[COMMAND_MAX_ARGS];
@@ -240,10 +267,7 @@ void ChangePromptCommand::execute(){
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){}
 
 void GetCurrDirCommand::execute(){
-  const size_t size=1024;
-  char buffer[size];
-  char* pwd=getcwd(buffer,size);
-  std::cout << pwd<<endl;
+  std::cout << getPwd()<<endl;
     return;
 
   
@@ -271,9 +295,7 @@ void ChangeDirCommand::execute(){
   }
   if(!args[1])
     return;
-  const size_t size=1024;
-  char buffer[size];
-  char* currentPwd=getcwd(buffer,size);
+  const char* currentPwd=getPwd();
   pwd = new char[strlen(currentPwd) + 1];
   strcpy(pwd,currentPwd);
   if(strcmp(args[1],"-") == 0){
@@ -378,5 +400,80 @@ void unaliasCommand::execute(){
 }
 
 
+
+
+
+void executeWithBash(char const *cmd_line){
+  char **args=new char *[4];
+  args[0]=strdup("bash");
+  args[1]=strdup("-c");
+  char* arguments=new char[COMMAND_MAX_LENGTH];
+  strcpy(arguments,cmd_line);
+  args[2]=arguments;
+  args[3]=nullptr;
+  execv("/bin/bash",args);
+  exit(1);
+}
+void executeNoBash(char const *cmd_line){
+  char **args=new char *[COMMAND_MAX_ARGS];
+  _parseCommandLine(cmd_line,args);
+  string path=string("/bin/")+args[0];
+  if (args[0][0] == '/' || args[0][0] == '.') {
+    execv(args[0], args);  
+  } else {
+    execvp(args[0], args);
+  }
+
+  exit(1);
+}
+
+
 ExternalCommand::ExternalCommand(char const *cmd_line) : Command(cmd_line){}
-void ExternalCommand::execute(){}
+void ExternalCommand::execute(){
+
+  string str_cmd(cmd_line);
+  if(str_cmd.find('?') != std::string::npos || str_cmd.find('*') != std::string::npos){
+    if (_isBackgroundComamnd(cmd_line)){
+
+    }
+    else{
+      int pid=fork();
+
+      if(pid==-1){
+        perror("smash error: fork failed");
+        return;
+      }
+      if(pid==0){
+        setpgrp();
+        executeWithBash(cmd_line);
+      }
+      else{
+        waitpid(pid, nullptr, 0);
+
+      }
+    }
+  }
+  else{
+    if (_isBackgroundComamnd(cmd_line)){
+
+    }
+    else{
+      int pid=fork();
+      if(pid==-1){
+
+        perror("smash error: fork failed");
+        return;
+      }
+      if(pid==0){
+        setpgrp();
+        executeNoBash(cmd_line);
+      }
+      else{
+        waitpid(pid, nullptr, 0);
+
+      }
+    }
+  }
+}
+
+
