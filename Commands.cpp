@@ -7,6 +7,8 @@
 #include <iomanip>
 #include "Commands.h"
 #include <regex>
+#include <fstream>
+
 
 using namespace std;
 
@@ -205,26 +207,37 @@ void ChangePromptCommand::execute(){
 GetCurrDirCommand::GetCurrDirCommand(const char *cmd_line) : BuiltInCommand(cmd_line){}
 
 void GetCurrDirCommand::execute(){
-  char **args=new char *[COMMAND_MAX_ARGS];
-  _parseCommandLine(cmd_line,args);
-  char *outfile="";
-  int state=0;
-  if(args[1]&&strcmp(args[1],">")==0){
-    outfile=args[2];
-    state=1;
-  }
-  if(args[1]&&strcmp(args[1],">>")==0){
-    outfile=args[2];
-    state=1;
-  }
-
-  
   const size_t size=1024;
   char buffer[size];
   char* pwd=getcwd(buffer,size);
 
-  std::cout << pwd<<"\n";
+  char **args=new char *[COMMAND_MAX_ARGS];
+  _parseCommandLine(cmd_line,args);
+  if(args[1]&&strcmp(args[1],">")==0){
+    std::ofstream file(args[2], std::ios::trunc);
+    if (file.is_open()) {
+      file << pwd<<endl;
+      file.close();
+    } else {
+      std::cerr << "Failed to open the file for writing." << std::endl;
+    }
+    return;
+  }
+  if(args[1]&&strcmp(args[1],">>")==0){
+    std::ofstream file(args[2], std::ios::app);
+    if (file.is_open()) {
+      file << pwd<<endl;
+      file.close();
+    } else {
+      std::cerr << "Failed to open the file for writing." << std::endl;
+    }
+    return;
+  }
 
+  std::cout << pwd<<endl;
+    return;
+
+  
 }
 
 
@@ -233,7 +246,29 @@ ShowPidCommand::ShowPidCommand(char const *cmd_line) : BuiltInCommand(cmd_line){
 
 void ShowPidCommand::execute(){
   int pid=getpid();
-  std::cout <<"smash pid is " <<pid<<" \n";
+  char **args=new char *[COMMAND_MAX_ARGS];
+  _parseCommandLine(cmd_line,args);
+    if(args[1]&&strcmp(args[1],">")==0){
+    std::ofstream file(args[2], std::ios::trunc);
+    if (file.is_open()) {
+      file <<"smash pid is " <<pid<<endl;
+      file.close();
+    } else {
+      std::cerr << "Failed to open the file for writing." << std::endl;
+    }
+    return;
+  }
+  if(args[1]&&strcmp(args[1],">>")==0){
+    std::ofstream file(args[2], std::ios::app);
+    if (file.is_open()) {
+      file <<"smash pid is " <<pid<<endl;
+      file.close();
+    } else {
+      std::cerr << "Failed to open the file for writing." << std::endl;
+    }
+    return;
+  }
+  std::cout <<"smash pid is " <<pid<<endl;
 
 }
 
