@@ -217,6 +217,7 @@ void GetCurrDirCommand::execute(){
     outfile=args[2];
     state=1;
   }
+
   
   const size_t size=1024;
   char buffer[size];
