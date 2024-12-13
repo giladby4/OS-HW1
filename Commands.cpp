@@ -215,6 +215,7 @@ Command::Command(const char *cmd_line){
 string Command::printCommand(){
   return cmd_line;
 }
+
 /*
 bool Command::isAlias(){
 
@@ -324,6 +325,14 @@ void JobsList::addJob(Command *cmd, int pid, bool isStopped){
 
 }
 
+void JobsList::printJobsList(){
+  removeFinishedJobs();
+
+  for (JobsList::JobEntry* jobEntry : jobsList ){
+    cout << "[" << jobEntry -> jobId << "]" << jobEntry -> commandString << endl;
+  }
+}
+
 
 
 JobsList::~JobsList()
@@ -336,11 +345,11 @@ JobsList::~JobsList()
 
 
 
-JobsCommand::JobsCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}
+JobsCommand::JobsCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){}
 
-void JobsCommand::execute(){}
-
-
+void JobsCommand::execute(){
+  jobs -> printJobsList();
+}
 
 
 QuitCommand::QuitCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}
