@@ -50,8 +50,12 @@ string _trim(const std::string &s) {
 
 int _parseCommandLine(const char *cmd_line, char **args) {
     FUNC_ENTRY()
-    int i = 0;
+    
+    char *cmd_line_copy = strdup(cmd_line); 
+    _removeBackgroundSign(cmd_line_copy); 
     std::istringstream iss(_trim(string(cmd_line)).c_str());
+
+    int i = 0;
     for (std::string s; iss >> s;) {
         args[i] = (char *) malloc(s.length() + 1);
         memset(args[i], 0, s.length() + 1);
@@ -349,11 +353,6 @@ void JobsList::addJob(Command *cmd, int pid, bool isStopped){
   }
   string commandString = cmd -> printCommand();
 
-  /*if(cmd -> isAlias()){
-    string commandString = cmd -> getAlias();
-  }
-  */
- 
   jobsList.push_back(new JobEntry(cmd, jobId, pid, commandString, isStopped));
 
 }
@@ -414,18 +413,6 @@ JobsList::JobEntry  *JobsList::getLastJob(){
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 JobsList::~JobsList()
 {
   for(auto it=jobsList.begin(); it!=jobsList.end();++it)
@@ -443,9 +430,12 @@ void JobsCommand::execute(){
 }
 
 
-QuitCommand::QuitCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}
+QuitCommand::QuitCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){}
 
-void QuitCommand::execute(){}
+void QuitCommand::execute(){
+
+
+}
 
 
 KillCommand::KillCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}
@@ -458,7 +448,8 @@ ForegroundCommand::ForegroundCommand(char const *cmd_line, JobsList *jobs) : Bui
 
 void ForegroundCommand::execute(){
   int jobId = 0;
-  char *args[2];
+  
+  char **args=new char *[COMMAND_MAX_ARGS];
   int argc = _parseCommandLine(cmd_line, args);
 
   if(argc > 2){
@@ -499,12 +490,6 @@ void ForegroundCommand::execute(){
   cout << job -> commandString << " " << pid << endl;
 
   jobs -> removeJobById(jobId);
-
-
-
-
-
-
 }
 
 
