@@ -85,6 +85,16 @@ void _removeBackgroundSign(char *cmd_line) {
     cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
 }
 
+ bool isNumber(const char *str) {
+    // Check if the string is empty or contains non-digit characters
+    for (int i = 0; str[i] != '\0'; ++i) {
+      if (!isdigit(str[i])) {
+        return false;
+      }
+    }
+    return true;
+    }
+
 // TODO: Add your implementation for classes in Commands.h 
 
 SmallShell::SmallShell():plastPwd(nullptr),prompt("smash") {
@@ -363,9 +373,38 @@ void KillCommand::execute(){}
 
 
 
-ForegroundCommand::ForegroundCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}
+ForegroundCommand::ForegroundCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){}
 
-void ForegroundCommand::execute(){}
+void ForegroundCommand::execute(){
+  int jobId = 0;
+  char *args[2];
+  int argc = _parseCommandLine(cmd_line, args);
+
+  if(argc > 2){
+    cerr << "smash error: fg: invalid arguments" << endl;
+    return;
+  }
+
+  if (argc == 1){  // Bring to fg the last job in the list
+    if(jobs -> jobsList.empty()){
+      cerr << "smash error: fg: jobs list is empty" << endl;
+      return;
+    }
+    else{
+      jobId = jobs->jobsList.back() -> jobId;   // Last job id
+    }
+  }
+  else{   // There is a second argument
+      if (!isNumber(args[1])) {
+      cout << "smash error: fg: invalid arguments" << endl;
+      return;
+    }
+    else{
+      
+    }
+  }
+
+}
 
 
 aliasCommand::aliasCommand(char const *cmd_line, map <string,string> *aliases) : BuiltInCommand(cmd_line), aliases(aliases){}
