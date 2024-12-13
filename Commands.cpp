@@ -412,6 +412,19 @@ JobsList::JobEntry  *JobsList::getLastJob(){
   return jobsList.back();
 }
 
+void JobsList::printJobsForQuitFunc(){
+  removeFinishedJobs();
+  cout << "smash: sending SIGKILL signal to "<<jobsList.size()<<" jobs:" << endl;
+
+  for(auto listIt=jobsList.begin(); listIt!=jobsList.end();++listIt)
+  {
+    JobsList::JobEntry* job=*listIt;
+    cout << job -> pid <<": " << job -> commandString  << endl;
+  }
+
+
+}
+
 
 JobsList::~JobsList()
 {
@@ -433,7 +446,15 @@ void JobsCommand::execute(){
 QuitCommand::QuitCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){}
 
 void QuitCommand::execute(){
+  char **args=new char *[COMMAND_MAX_ARGS];
+  _parseCommandLine(cmd_line,args);
+  _removeBackgroundSign(args[1]);
 
+  if (strcmp(args[1], "kill") == 0) {
+    jobs->removeFinishedJobs();
+    jobs->printJobsForQuitFunc();
+    jobs->killAllJobs();
+}
 
 }
 
