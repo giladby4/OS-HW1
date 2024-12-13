@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <map>
+#include <list>
+
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
 using namespace std;
@@ -124,13 +126,25 @@ public:
 class JobsList {
 public:
     class JobEntry {
-        // TODO: Add your data members
+        public:
+            Command* cmd;
+            int jobId;
+            int pid;
+            std::string command;
+            bool isStopped;
+
+        JobEntry(Command* cmd, int jobId, int pid, const std::string command, bool isStopped)
+            : cmd(cmd), jobId(jobId), pid(pid), command(command), isStopped(isStopped){}
+
+            ~JobEntry()=default;
+            // Function to get information?
     };
 
-    // TODO: Add your data members
-public:
-    JobsList();
+    std::list<JobEntry*> jobsList;
 
+public:
+
+    JobsList():jobsList(){}
     ~JobsList();
 
     void addJob(Command *cmd, bool isStopped = false);
@@ -153,34 +167,35 @@ public:
 };
 
 class JobsCommand : public BuiltInCommand {
-    // TODO: Add your data members
+    JobsList* jobs;
 public:
     JobsCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~JobsCommand() {
-    }
+    virtual ~JobsCommand() {}
 
     void execute() override;
 };
 
 class KillCommand : public BuiltInCommand {
     // TODO: Add your data members
+    JobsList* jobs;
+
 public:
     KillCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~KillCommand() {
-    }
+    virtual ~KillCommand() {}
 
     void execute() override;
 };
 
 class ForegroundCommand : public BuiltInCommand {
     // TODO: Add your data members
+    JobsList* jobs;
+
 public:
     ForegroundCommand(const char *cmd_line, JobsList *jobs);
 
-    virtual ~ForegroundCommand() {
-    }
+    virtual ~ForegroundCommand() {}
 
     void execute() override;
 };
