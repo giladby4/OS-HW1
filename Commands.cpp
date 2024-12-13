@@ -349,10 +349,11 @@ void JobsList::addJob(Command *cmd, int pid, bool isStopped){
   }
   string commandString = cmd -> printCommand();
 
-  if(cmd -> isAlias()){
+  /*if(cmd -> isAlias()){
     string commandString = cmd -> getAlias();
   }
-  
+  */
+ 
   jobsList.push_back(new JobEntry(cmd, jobId, pid, commandString, isStopped));
 
 }
@@ -387,6 +388,26 @@ void JobsList::removeJobById(int jobId){
     }
   }
 }
+
+
+bool isFinished(JobsList::JobEntry* job)
+{
+  if(job==nullptr)
+  {
+    return true;
+  }
+  int status;
+  return waitpid(job->pid, &status, WNOHANG) != 0;
+}
+
+
+void JobsList::removeFinishedJobs(){
+  jobsList.remove_if(isFinished);
+}
+
+
+
+
 
 
 
