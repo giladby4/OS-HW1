@@ -343,6 +343,31 @@ void JobsList::printJobsList(){
   }
 }
 
+JobsList::JobEntry *JobsList::getJobById(int jobId){
+  for(auto listIt=jobsList.begin(); listIt!=jobsList.end();++listIt)
+  {
+    if((*listIt) -> jobId == jobId)
+    {
+      return *listIt;
+    }
+  }
+  return nullptr;
+}
+
+void JobsList::removeJobById(int jobId){
+  for(auto listIt=jobsList.begin(); listIt!=jobsList.end();++listIt)
+  {
+    if((*listIt)->jobId==jobId)
+    {
+      delete *listIt;
+      jobsList.erase(listIt);
+      return;
+    }
+  }
+}
+
+
+
 
 
 JobsList::~JobsList()
@@ -395,14 +420,34 @@ void ForegroundCommand::execute(){
     }
   }
   else{   // There is a second argument
-      if (!isNumber(args[1])) {
-      cout << "smash error: fg: invalid arguments" << endl;
-      return;
+      try {
+        // Convert the second argument (args[1]) to an integer
+        jobId = std::stoi(args[1]);
+        if (jobId <= 0) {
+          std::cerr << "smash error: fg: invalid arguments" << std::endl;
+          return;
+        }
+    } catch (const std::exception &e) {
+        cerr << "smash error: fg: invalid arguments" << endl;
+        return;
     }
-    else{
-      
-    }
+
   }
+
+  JobsList::JobEntry* job = jobs -> getJobById(jobId);
+
+  if (job == nullptr){
+    cerr << "smash error: fg: job-id " << jobId << "does not exist" << endl;
+  }
+  int pid = job -> pid;
+  cout << job -> commandString << " " << pid << endl;
+
+  jobs -> removeJobById(jobId);
+
+
+
+
+
 
 }
 
