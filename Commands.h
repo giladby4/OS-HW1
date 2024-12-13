@@ -20,6 +20,15 @@ public:
 
     string printCommand();
 
+
+        
+
+    bool isAlias();
+    
+        //Needs complition?
+
+    string getAlias();
+
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
@@ -132,11 +141,11 @@ public:
             Command* cmd;
             int jobId;
             int pid;
-            std::string command;
+            std::string commandString;
             bool isStopped;
 
         JobEntry(Command* cmd, int jobId, int pid, const std::string command, bool isStopped)
-            : cmd(cmd), jobId(jobId), pid(pid), command(command), isStopped(isStopped){}
+            : cmd(cmd), jobId(jobId), pid(pid), commandString(command), isStopped(isStopped){}
 
             ~JobEntry()=default;
             // Function to get information?
