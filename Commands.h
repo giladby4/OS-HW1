@@ -42,9 +42,13 @@ public:
 
 };
 
+class JobsList;
+
+
 class ExternalCommand : public Command {
+    JobsList *jobs;
 public:
-    ExternalCommand(const char *cmd_line);
+    ExternalCommand(const char *cmd_line, JobsList* jobs );
 
     virtual ~ExternalCommand() =default;
 
@@ -120,7 +124,6 @@ public:
     void execute() override;
 };
 
-class JobsList;
 
 class QuitCommand : public BuiltInCommand {
     // TODO: Add your data members 

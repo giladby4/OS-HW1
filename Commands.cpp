@@ -171,7 +171,7 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
 
 
   else {
-    return new ExternalCommand(cmd_line);
+    return new ExternalCommand(cmd_line, jobs);
   }
   
   return nullptr;
@@ -562,13 +562,25 @@ void executeNoBash(char const *cmd_line){
 }
 
 
-ExternalCommand::ExternalCommand(char const *cmd_line) : Command(cmd_line){}
+ExternalCommand::ExternalCommand(char const *cmd_line, JobsList *jobs) : Command(cmd_line), jobs(jobs){}
 void ExternalCommand::execute(){
 
   string str_cmd(cmd_line);
   if(str_cmd.find('?') != std::string::npos || str_cmd.find('*') != std::string::npos){
     if (_isBackgroundComamnd(cmd_line)){
+     int pid=fork();
 
+      if(pid==-1){
+        perror("smash error: fork failed");
+        return;
+      }
+      if(pid==0){
+        setpgrp();
+        executeWithBash(cmd_line);
+      }
+      else{
+        this->jobs->addJob(this, pid,false);
+      } 
     }
     else{
       int pid=fork();
