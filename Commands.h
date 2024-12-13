@@ -167,6 +167,8 @@ public:
 
     void killAllJobs();
 
+    void printJobsForQuitFunc();
+
     void removeFinishedJobs();
 
     JobEntry *getJobById(int jobId);
