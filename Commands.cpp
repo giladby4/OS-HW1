@@ -2,6 +2,7 @@
 #include <string.h>
 #include <iostream>
 #include <vector>
+#include <list>
 #include <sstream>
 #include <sys/wait.h>
 #include <iomanip>
@@ -233,6 +234,15 @@ Command::Command(const char *cmd_line){
   Command::cmd_line=cmd_line;
 }
 
+string Command::printCommand(){
+  return cmd_line;
+}
+
+/*
+bool Command::isAlias(){
+
+}
+*/
 
 BuiltInCommand::BuiltInCommand(const char *cmd_line):Command(cmd_line){}
 
@@ -317,11 +327,51 @@ void ChangeDirCommand::execute(){
 
 
 
-JobsCommand::JobsCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}
+// JobsList
 
-void JobsCommand::execute(){}
+void JobsList::addJob(Command *cmd, int pid, bool isStopped){
+  removeFinishedJobs();
+
+  int jobId=1;
+
+  if(!jobsList.empty()){
+    jobId = (jobsList.back() -> jobId) + 1;
+  }
+  string commandString = cmd -> printCommand();
+
+  if(cmd -> isAlias()){
+    string commandString = cmd -> getAlias();
+  }
+  
+  jobsList.push_back(new JobEntry(cmd, jobId, pid, commandString, isStopped));
+
+}
+
+void JobsList::printJobsList(){
+  removeFinishedJobs();
+
+  for (JobsList::JobEntry* jobEntry : jobsList ){
+    cout << "[" << jobEntry -> jobId << "]" << jobEntry -> commandString << endl;
+  }
+}
 
 
+
+JobsList::~JobsList()
+{
+  for(auto it=jobsList.begin(); it!=jobsList.end();++it)
+  {
+    delete *it;
+  }
+}
+
+
+
+JobsCommand::JobsCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line), jobs(jobs){}
+
+void JobsCommand::execute(){
+  jobs -> printJobsList();
+}
 
 
 QuitCommand::QuitCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}

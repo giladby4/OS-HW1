@@ -18,6 +18,8 @@ public:
 
     virtual void execute() = 0;
 
+    string printCommand();
+
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
@@ -147,7 +149,7 @@ public:
     JobsList():jobsList(){}
     ~JobsList();
 
-    void addJob(Command *cmd, bool isStopped = false);
+    void addJob(Command *cmd, int pid, bool isStopped = false);
 
     void printJobsList();
 
