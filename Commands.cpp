@@ -212,6 +212,14 @@ Command::Command(const char *cmd_line){
   Command::cmd_line=cmd_line;
 }
 
+string Command::printCommand(){
+  return cmd_line;
+}
+/*
+bool Command::isAlias(){
+
+}
+*/
 
 BuiltInCommand::BuiltInCommand(const char *cmd_line):Command(cmd_line){}
 
@@ -300,7 +308,7 @@ void ChangeDirCommand::execute(){
 
 void JobsList::addJob(Command *cmd, int pid, bool isStopped){
   removeFinishedJobs();
-  
+
   int jobId=1;
 
   if(!jobsList.empty()){
@@ -312,7 +320,7 @@ void JobsList::addJob(Command *cmd, int pid, bool isStopped){
     string commandString = cmd -> getAlias();
   }
   
-  jobsList.push_back(new JobEntry(cmd, jobId, pid, commandString, isStopped))
+  jobsList.push_back(new JobEntry(cmd, jobId, pid, commandString, isStopped));
 
 }
 
