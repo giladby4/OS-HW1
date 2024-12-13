@@ -421,9 +421,18 @@ void JobsList::printJobsForQuitFunc(){
     JobsList::JobEntry* job=*listIt;
     cout << job -> pid <<": " << job -> commandString  << endl;
   }
-
-
 }
+
+void JobsList::killAllJobs(){
+  for( auto listIt = jobsList.begin() ; listIt != jobsList.end() ; ++listIt){
+    kill((*listIt) -> pid, SIGKILL);
+
+    JobEntry* job = *listIt;
+    *listIt = nullptr;
+    delete job;
+  }
+}
+
 
 
 JobsList::~JobsList()
