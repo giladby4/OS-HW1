@@ -140,7 +140,7 @@ public:
             // Function to get information?
     };
 
-    std::list<JobEntry> jobsList;
+    std::list<JobEntry*> jobsList;
 
 public:
 
