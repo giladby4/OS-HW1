@@ -405,6 +405,19 @@ void JobsList::removeFinishedJobs(){
   jobsList.remove_if(isFinished);
 }
 
+JobsList::JobEntry  *JobsList::getLastJob(){
+  if(jobsList.empty())
+  {
+    return nullptr;
+  }
+  return jobsList.back();
+}
+
+
+
+
+
+
 
 
 
@@ -459,7 +472,7 @@ void ForegroundCommand::execute(){
       return;
     }
     else{
-      jobId = jobs->jobsList.back() -> jobId;   // Last job id
+      jobId = jobs-> getLastJob() -> jobId;   // Last job id
     }
   }
   else{   // There is a second argument

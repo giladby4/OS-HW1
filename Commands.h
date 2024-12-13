@@ -173,7 +173,7 @@ public:
 
     void removeJobById(int jobId);
 
-    JobEntry *getLastJob(int *lastJobId);
+    JobEntry *getLastJob();
 
     JobEntry *getLastStoppedJob(int *jobId);
 
