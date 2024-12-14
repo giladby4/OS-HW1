@@ -532,18 +532,20 @@ void ForegroundCommand::execute(){
   int argc = _parseCommandLine(cmd_line, args);
 
   if(argc > 2){
-    cerr << "smash error: fg: invalid arguments" << endl;
+    std::cerr << "smash error: fg: invalid arguments" << std::endl;
+    delete[] args;
     return;
   }
 
   if (argc == 1){  // Bring to fg the last job in the list
     if(jobs -> jobsList.empty()){
-      cerr << "smash error: fg: jobs list is empty" << endl;
+      std::cerr << "smash error: fg: jobs list is empty" << std::endl;
+      delete[] args;
       return;
     }
-    else{
-      jobId = jobs-> getLastJob() -> jobId;   // Last job id
-    }
+
+    jobId = jobs-> getLastJob() -> jobId;   // Last job id
+    
   }
   else{   // There is a second argument
       try {
@@ -551,19 +553,22 @@ void ForegroundCommand::execute(){
         jobId = std::stoi(args[1]);
         if (jobId <= 0) {
           std::cerr << "smash error: fg: invalid arguments" << std::endl;
+          delete[] args;
           return;
         }
     } catch (const std::exception &e) {
-        cerr << "smash error: fg: invalid arguments" << endl;
+        std::cerr << "smash error: fg: invalid arguments" << std::endl;
+        delete[] args;
         return;
     }
-
   }
 
   JobsList::JobEntry* job = jobs -> getJobById(jobId);
 
   if (job == nullptr){
     std::cerr << "smash error: fg: job-id " << jobId << "does not exist" << std::endl;
+    delete[] args;
+    return;
   }
   int pid = job -> pid;
   std::cout << job -> commandString << " " << pid << std::endl;
