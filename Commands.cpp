@@ -11,6 +11,8 @@
 #include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/syscall.h>  //For SYS_getdents syscall
+#include <dirent.h>       //For directory entries
 
 
 using namespace std;
@@ -113,8 +115,12 @@ void SmallShell::printPrompt(){
 }
 
 JobsList* SmallShell::getJobsList(){
-        return jobs;
-    }
+  return jobs;
+}
+
+char* SmallShell::getPwd(){
+  return plastPwd;
+}
 
 SmallShell::~SmallShell() {
 // TODO: add your implementation
@@ -175,8 +181,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
   else if (firstWord.compare("unalias") == 0) {
     return new unaliasCommand(cmd_line, &aliases);
   }
-
-
+  else if (firstWord.compare("listdir") == 0) {
+    return new ListDirCommand(cmd_line);
+  }
 
   else {
     return new ExternalCommand(cmd_line, jobs);
@@ -759,5 +766,141 @@ void ExternalCommand::execute(){
     }
   }
 }
+
+ListDirCommand::ListDirCommand(const char *cmd_line):Command(cmd_line){};
+
+//Helper function to print the directory tree
+void ListDirCommand::printTree(const std::string& path, std::vector<std::string>& directories, std::vector<std::string>& files, int level = 0) {
+  // Print directories and go Recursively to subdirectories
+  for (const auto& dir : directories) {
+    std::cout << std::string(level, '\t') << dir << std::endl;
+        
+    // We will skip '.' and '..'
+    if (dir != "." && dir != "..") {
+      // Recursively call printTree for subdirectories
+      std::string subDirPath = path + "/" + dir;
+      std::vector<std::string> subDirectories;
+      std::vector<std::string> subFiles;
+
+      // Open the subdirectory to get its contents
+      int subFd = open(subDirPath.c_str(), O_RDONLY | O_DIRECTORY);
+      if (subFd == -1) {
+        perror("smash error: open failed");
+        return;
+      }
+
+      char bufferRead[MAX_SIZE];
+      ssize_t sizeToRead;
+
+      while (true) {
+        sizeToRead = syscall(SYS_getdents, subFd, bufferRead, MAX_SIZE);
+        if (sizeToRead == -1) {
+          perror("smash error: getdents failed");
+            break;
+        } 
+        else if (sizeToRead == 0) {
+          break;
+        }
+
+        for (int i = 0; i < sizeToRead;) {
+          struct dirent *entry = (struct dirent *)(bufferRead + i);
+          std::string name = entry->d_name;
+
+          if (entry->d_type == DT_DIR) {
+            subDirectories.push_back(name);  // Add subdirectories
+          } 
+          else if (entry->d_type == DT_REG) {
+            subFiles.push_back(name);  // Add files
+          }
+
+          i += entry->d_reclen;  // Move to the next entry
+        }
+      }
+
+      close(subFd);
+      // Sort subdirectories and files alphabetically
+      std::sort(subDirectories.begin(), subDirectories.end());
+      std::sort(subFiles.begin(), subFiles.end());
+
+      // Print the contents of the subdirectory recursively
+      printTree(subDirPath, subDirectories, subFiles, level + 1);
+    
+    }
+  }
+  // print files
+  for (const auto& file : files) {
+    std::cout << std::string(level, '\t') << file << std::endl;
+  }
+}
+
+void ListDirCommand::execute(){
+
+  std::string pathToDir="";
+  std::vector<std::string> directories;
+  std::vector<std::string> files;
+
+
+  char **args=new char *[COMMAND_MAX_ARGS];
+  int argc = _parseCommandLine(cmd_line,args);
+
+  if (argc > 2){
+    std::cerr << "smash error: listdir: too many arguments" << std::endl;
+    return;
+  }
+  else if(argc == 1){
+    pathToDir = SmallShell::getInstance().getPwd();
+  }
+  else{
+    _removeBackgroundSign(args[1]);
+    pathToDir = args[1];
+  }
+
+  int fd = open(pathToDir.c_str(), O_RDONLY | O_DIRECTORY);
+  if (fd == -1) 
+  {
+    perror("smash error: open failed");
+    return;
+  }
+  
+  char bufferRead[MAX_SIZE]; //Buffer size = 256
+  ssize_t sizeToRead;
+
+  while (true) {
+    // SYS_getdents - syscall used to read directory entries from a file descriptor.
+    sizeToRead = syscall(SYS_getdents, fd, bufferRead, MAX_SIZE);
+    if (sizeToRead == -1){
+      perror("smash error: getdents failed");
+      break;
+    }
+    else if(sizeToRead == 0){
+      break;
+    }
+    
+    for (int i = 0 ; i < sizeToRead ;){
+      struct dirent *entry = (struct dirent *)(bufferRead + i);
+      std::string name = entry->d_name;
+
+      //We will separate files and directories
+
+      if (entry->d_type == DT_DIR) {       //Its directory
+        directories.push_back(name);  
+      } 
+      else if (entry->d_type == DT_REG) {  //Its file
+        files.push_back(name);
+      }
+
+      i += entry->d_reclen;  // Move to the next entry
+    }
+  }
+  close(fd);
+
+  std::sort(directories.begin(), directories.end());
+  std::sort(files.begin(), files.end());
+
+  printTree(pathToDir, directories, files);
+}
+
+
+
 
 
