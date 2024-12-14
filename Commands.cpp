@@ -777,7 +777,7 @@ void ExternalCommand::execute(){
 ListDirCommand::ListDirCommand(const char *cmd_line):Command(cmd_line){};
 
 //Helper function to print the directory tree
-void ListDirCommand::printTree(const std::string& path, std::vector<std::string>& directories, std::vector<std::string>& files, int level = 0) {
+void ListDirCommand::printTree(const std::string& path, std::vector<std::string>& directories, std::vector<std::string>& files, int level) {
   // Print directories and go Recursively to subdirectories
   for (const auto& dir : directories) {
     std::cout << std::string(level, '\t') << dir << std::endl;
