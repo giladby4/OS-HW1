@@ -862,12 +862,12 @@ void ListDirCommand::execute(){
     return;
   }
   
-  char bufferRead[MAX_SIZE]; //Buffer size = 256
+  char bufferRead[MAX_SIZE]; //Buffer size = 4096 
   ssize_t sizeToRead;
 
   while (true) {
     // SYS_getdents - syscall used to read directory entries from a file descriptor.
-    sizeToRead = syscall(SYS_getdents, fd, bufferRead, MAX_SIZE);
+    sizeToRead = syscall(SYS_getdents, fd, bufferRead, sizeof(bufferRead));
     if (sizeToRead == -1){
       perror("smash error: getdents failed");
       break;
@@ -899,6 +899,82 @@ void ListDirCommand::execute(){
 
   printTree(pathToDir, directories, files);
 }
+
+
+WhoAmICommand::WhoAmICommand(const char *cmd_line): Command(cmd_line){};
+
+void WhoAmICommand::execute(){
+
+  uid_t uid = getuid();
+  int fd = open("/etc/passwd", O_RDONLY);
+
+  if (fd == -1) {
+    perror("smash error: open failed");
+    return;
+  }
+
+  char buffer[MAX_SIZE];  // Buffer size = 4096 
+    ssize_t bytesRead;
+    std::string passwdContent;
+        
+    //  Read from "/etc/passwd" to buffer
+    while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0) {
+      passwdContent.append(buffer, bytesRead);
+    }
+    if (bytesRead == -1) {
+      perror("smash error: read failed");
+      close(fd);
+      return;
+    }
+
+    close(fd);
+
+    // Split content into lines
+    size_t lineStart = 0;
+    while (lineStart < passwdContent.size()) {
+    size_t lineEnd = passwdContent.find('\n', lineStart);
+
+    // If cant find '\n'
+    if (lineEnd == std::string::npos) {
+      lineEnd = passwdContent.size();
+    }
+
+    std::string currLine = passwdContent.substr(lineStart, lineEnd - lineStart);
+    lineStart = lineEnd + 1;
+
+    // Add the fields in the line to vector
+    std::vector<std::string> fields;
+    size_t fieldStart = 0;
+
+    while (fieldStart < currLine.size()) {
+      size_t fieldEnd = currLine.find(':', fieldStart);
+
+      // If cant find ':'
+      if (fieldEnd == std::string::npos) {
+        fieldEnd = currLine.size();
+      }
+
+      fields.push_back(currLine.substr(fieldStart, fieldEnd - fieldStart));
+      fieldStart = fieldEnd + 1;
+    }
+    /*  Lines is typically split into 7 fields in "/etc/passwd"
+        Field 0: fields[0] is the username.
+        Field 2: fields[2] is the UID.
+        Field 5: fields[5] is the home directory.
+    */
+
+    // Check if UID matches
+    if (fields.size() >= 7) {
+      if (std::stoi(fields[2]) == static_cast<int>(uid)) {
+        std::string username = fields[0];
+        std::string homeDir = fields[5];
+        std::cout << username << " " << homeDir << std::endl;
+        return;
+      }
+    }    
+  }
+}
+
 
 
 
