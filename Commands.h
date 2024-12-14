@@ -7,7 +7,7 @@
 
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
-#define MAX_SIZE (256)
+#define MAX_SIZE (4096)
 using namespace std;
 class Command {
 protected:
@@ -20,15 +20,6 @@ public:
     virtual void execute() = 0;
 
     string printCommand();
-
-
-        
-
-    bool isAlias();
-    
-        //Needs complition?
-
-    string getAlias();
 
     //virtual void prepare();
     //virtual void cleanup();
