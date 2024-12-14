@@ -280,8 +280,6 @@ private:
     map <string,string>  aliases;
     SmallShell();
 
-
-
 public:
     Command *CreateCommand(const char *cmd_line);
 
@@ -298,6 +296,8 @@ public:
     ~SmallShell();
 
     void executeCommand(const char *cmd_line);
+
+    JobsList* getJobsList();
 
     // TODO: add extra methods as needed
 };
