@@ -7,6 +7,7 @@
 
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+#define MAX_SIZE (256)
 using namespace std;
 class Command {
 protected:
@@ -224,6 +225,8 @@ public:
     }
 
     void execute() override;
+
+    void printTree(const std::string& path, std::vector<std::string>& directories, std::vector<std::string>& files, int level = 0);
 };
 
 class WhoAmICommand : public Command {
