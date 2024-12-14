@@ -361,7 +361,7 @@ void JobsList::printJobsList(){
   removeFinishedJobs();
 
   for (JobsList::JobEntry* jobEntry : jobsList ){
-    cout << "[" << jobEntry -> jobId << "]" << jobEntry -> commandString << endl;
+    std::cout << "[" << jobEntry -> jobId << "]" << jobEntry -> commandString << std::endl;
   }
 }
 
@@ -463,14 +463,63 @@ void QuitCommand::execute(){
     jobs->removeFinishedJobs();
     jobs->printJobsForQuitFunc();
     jobs->killAllJobs();
-}
+  }
 
 }
 
 
-KillCommand::KillCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line){}
+KillCommand::KillCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(cmd_line),jobs(jobs){}
 
-void KillCommand::execute(){}
+void KillCommand::execute(){
+
+  char **args=new char *[COMMAND_MAX_ARGS];
+  int argc = _parseCommandLine(cmd_line, args);
+
+  if( argc != 3 ){
+    delete[] args;
+    std::cerr <<"smash error: kill: invalid arguments" << std::endl;
+    return;
+  }
+  else{
+    if ( args[1][0] != '-'){
+      delete[] args;
+      std::cerr <<"smash error: kill: invalid arguments" << std::endl;
+      return;
+    }
+    else{ 
+      std::string signalStr(args[1]);   // Convert args to string
+      try {
+        int signalNum = std::stoi(signalStr.substr(1));  // Remove the '-' and convert the rest
+        if (signalNum < 1 || signalNum > 31){
+          delete[] args;
+          perror("smash error: kill failed");
+        }
+        _removeBackgroundSign(args[2]);
+        int jobId = std::stoi(args[2]);
+
+        JobsList::JobEntry* job = jobs -> getJobById(jobId);
+        if (job == nullptr){
+          std::cerr << "smash error: kill: job-id "<<jobId<<" does not exist" << std::endl;
+          delete[] args;
+          return;
+        }
+        else{
+          std::cout<< "signal number "<<signalNum<< " was sent to pid "<<job -> pid <<std::endl;
+          if(kill(job -> pid,signalNum)!=0)
+          {
+            delete[] args;
+            perror("smash error: kill failed");
+          }
+        }
+      }
+      catch (const std::invalid_argument& e) {
+       std::cerr << "smash error: kill: invalid arguments" << std::endl;
+       delete[] args;
+       return;
+      }
+    }  
+  }
+}
 
 
 
@@ -514,7 +563,7 @@ void ForegroundCommand::execute(){
   JobsList::JobEntry* job = jobs -> getJobById(jobId);
 
   if (job == nullptr){
-    cerr << "smash error: fg: job-id " << jobId << "does not exist" << endl;
+    std::cerr << "smash error: fg: job-id " << jobId << "does not exist" << std::endl;
   }
   int pid = job -> pid;
   cout << job -> commandString << " " << pid << endl;
