@@ -303,7 +303,7 @@ ShowPidCommand::ShowPidCommand(char const *cmd_line) : BuiltInCommand(cmd_line){
 
 void ShowPidCommand::execute(){
   int pid=getpid();
-  cout <<"smash pid is " <<pid<<endl;
+  std::cout <<"smash pid is " <<pid<<endl;
 
 }
 
@@ -414,12 +414,12 @@ JobsList::JobEntry  *JobsList::getLastJob(){
 
 void JobsList::printJobsForQuitFunc(){
   removeFinishedJobs();
-  cout << "smash: sending SIGKILL signal to "<<jobsList.size()<<" jobs:" << endl;
+  std::cout << "smash: sending SIGKILL signal to "<<jobsList.size()<<" jobs:" << std::endl;
 
   for(auto listIt=jobsList.begin(); listIt!=jobsList.end();++listIt)
   {
     JobsList::JobEntry* job=*listIt;
-    cout << job -> pid <<": " << job -> commandString  << endl;
+    std::cout << job -> pid <<": " << job -> commandString  << std::endl;
   }
 }
 
@@ -566,7 +566,7 @@ void ForegroundCommand::execute(){
     std::cerr << "smash error: fg: job-id " << jobId << "does not exist" << std::endl;
   }
   int pid = job -> pid;
-  cout << job -> commandString << " " << pid << endl;
+  std::cout << job -> commandString << " " << pid << std::endl;
 
   jobs -> removeJobById(jobId);
 }
@@ -578,7 +578,7 @@ aliasCommand::aliasCommand(char const *cmd_line, map <string,string> *aliases) :
 void aliasCommand::execute(){
   if(strcmp(cmd_line,"alias")==0){
     for(const auto& pair : *aliases){
-      cout << pair.first<<"='"<<pair.second<<"'\n";
+      std::cout << pair.first<<"='"<<pair.second<<"'\n";
     }
     return;
   } 
