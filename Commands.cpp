@@ -113,8 +113,12 @@ void SmallShell::printPrompt(){
 }
 
 JobsList* SmallShell::getJobsList(){
-        return jobs;
-    }
+  return jobs;
+}
+
+char* SmallShell::getPwd(){
+  return plastPwd;
+}
 
 SmallShell::~SmallShell() {
 // TODO: add your implementation
@@ -175,8 +179,9 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
   else if (firstWord.compare("unalias") == 0) {
     return new unaliasCommand(cmd_line, &aliases);
   }
-
-
+  else if (firstWord.compare("listdir") == 0) {
+    return new ListDirCommand(cmd_line);
+  }
 
   else {
     return new ExternalCommand(cmd_line, jobs);
@@ -759,5 +764,15 @@ void ExternalCommand::execute(){
     }
   }
 }
+
+ListDirCommand::ListDirCommand(const char *cmd_line):Command(cmd_line){};
+
+void Command::execute(){
+
+
+}
+
+
+
 
 

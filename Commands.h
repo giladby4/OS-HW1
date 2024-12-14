@@ -298,6 +298,7 @@ public:
     void executeCommand(const char *cmd_line);
 
     JobsList* getJobsList();
+    char* getPwd();
 
     // TODO: add extra methods as needed
 };
