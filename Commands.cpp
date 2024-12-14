@@ -11,8 +11,13 @@
 #include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/syscall.h>  //For SYS_getdents syscall
-#include <dirent.h>       //For directory entries
+
+#include <sys/syscall.h>  // Used for listDir command: SYS_getdents syscall
+#include <dirent.h>       // Used for listDir command: For directory entries
+
+#include <net/if.h>       // Used for netInfo command:(ifreq)
+#include <arpa/inet.h>    // Used for netInfo command: inet_ntoa function
+#include <sys/ioctl.h>    // Used for netInfo command: ioctl function
 
 
 using namespace std;
@@ -789,11 +794,11 @@ void ListDirCommand::printTree(const std::string& path, std::vector<std::string>
         return;
       }
 
-      char bufferRead[MAX_SIZE];
+      char bufferRead[BUFFER_SIZE];
       ssize_t sizeToRead;
 
       while (true) {
-        sizeToRead = syscall(SYS_getdents, subFd, bufferRead, MAX_SIZE);
+        sizeToRead = syscall(SYS_getdents, subFd, bufferRead, BUFFER_SIZE);
         if (sizeToRead == -1) {
           perror("smash error: getdents failed");
             break;
@@ -862,7 +867,7 @@ void ListDirCommand::execute(){
     return;
   }
   
-  char bufferRead[MAX_SIZE]; //Buffer size = 4096 
+  char bufferRead[BUFFER_SIZE];
   ssize_t sizeToRead;
 
   while (true) {
@@ -913,7 +918,7 @@ void WhoAmICommand::execute(){
     return;
   }
 
-  char buffer[MAX_SIZE];  // Buffer size = 4096 
+  char buffer[BUFFER_SIZE];  // Buffer size = 4096 
     ssize_t bytesRead;
     std::string passwdContent;
         
@@ -974,6 +979,186 @@ void WhoAmICommand::execute(){
     }    
   }
 }
+
+
+NetInfo::NetInfo(const char *cmd_line): Command(cmd_line){};
+
+
+void getInterfaceDetails(const std::string &interface, std::string &ipAddress, std::string &subnetMask) {
+  struct ifreq ifr;
+  int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+  if (sock == -1) {
+    perror("smash error: socket failed");
+    return;
+  }
+
+  strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ);
+
+  // Get IP address
+  if (ioctl(sock, SIOCGIFADDR, &ifr) == 0) {
+    struct sockaddr_in *ipAddr = (struct sockaddr_in *)&ifr.ifr_addr;
+    ipAddress = inet_ntoa(ipAddr->sin_addr);
+  } 
+  else {
+    perror("smash error: ioctl failed");
+  }
+
+  // Get subnet mask
+  if (ioctl(sock, SIOCGIFNETMASK, &ifr) == 0) {
+    struct sockaddr_in *subnetAddr = (struct sockaddr_in *)&ifr.ifr_netmask;
+    subnetMask = inet_ntoa(subnetAddr->sin_addr);
+  } 
+  else {
+    perror("smash error: ioctl failed");  
+  }
+
+  close(sock);
+}
+
+void getDefaultGateway(std::string &gateway) {
+
+  int fd = open("/proc/net/route", O_RDONLY);
+  if (fd == -1) {
+    perror("smash error: open failed");  
+    return;
+  }
+
+  char buffer[BUFFER_SIZE];
+  ssize_t bytesRead = read(fd, buffer, sizeof(buffer));
+
+  if (bytesRead == -1) {
+    perror("smash error: read failed");  
+    close(fd);
+    return;
+  }
+
+  close(fd);
+
+  // We want treat buffer as a string
+  buffer[bytesRead] = '\0';
+    
+  std::string content(buffer);
+  std::string line;
+  std::istringstream ss(content);
+
+  // Skip the first line (headers)
+  std::getline(ss, line);
+
+  while (std::getline(ss, line)) {
+    std::istringstream lineStream(line);
+    std::string iface, destination, gatewayHex;
+    unsigned int dest, gw;
+
+    lineStream >> iface >> destination >> gatewayHex;
+
+    if (iface != "Iface" && destination == "00000000") {  // Default
+      std::stringstream ssGateway;
+      ssGateway << std::hex << gatewayHex;
+      ssGateway >> gw;
+      struct in_addr addr;
+      addr.s_addr = gw;
+      gateway = inet_ntoa(addr);
+      break;  
+    }
+  }
+}
+
+void getDNSServers(std::vector<std::string>& dnsServers) {
+  const char* filePath = "/etc/resolv.conf";
+
+  char buffer[BUFFER_SIZE];  // Buffer to hold data read from the file
+  ssize_t bytesRead;
+
+  int fd = open(filePath, O_RDONLY);
+  if (fd == -1) {
+    perror("smash error: open failed");  
+    return;
+  }
+
+  // Read the file content
+  while ((bytesRead = read(fd, buffer, sizeof(buffer) - 1)) > 0) {
+    buffer[bytesRead] = '\0';  // Null-terminate the buffer
+
+    // Process the data to extract DNS server entries
+    char* line = strtok(buffer, "\n");
+
+    while (line != nullptr) {
+      // Look for lines starting with "nameserver"
+      if (strncmp(line, "nameserver", 10) == 0) {
+        // Extract the DNS server address after "nameserver "
+        std::string dnsServer(line + 11);
+        dnsServers.push_back(dnsServer);
+      }
+
+      line = strtok(nullptr, "\n");  // Get the next line
+    }
+  }
+  close(fd);
+
+  if (dnsServers.empty()) {
+    std::cerr << "No DNS servers found in /etc/resolv.conf." << std::endl;
+    return;
+  }
+}
+
+void NetInfo::execute(){
+  char **args=new char *[COMMAND_MAX_ARGS];
+  int argc = _parseCommandLine(cmd_line,args);
+
+  if (argc == 1){
+    std::cerr<<"smash error: netinfo: interface not specified" << std::endl;
+    return;
+  }
+
+  std::string interface = args[1];
+
+  struct ifreq ifr;
+  int sock = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sock == -1) {
+    perror("smash error: socket failed");
+    return;
+  }
+
+  //  IFNAMSIZ - defines the maximum length of a network interface name
+  strncpy(ifr.ifr_name, interface.c_str(), IFNAMSIZ);
+
+  if (ioctl(sock, SIOCGIFADDR, &ifr) == -1) {
+    std::cerr << "smash error: netinfo: interface " << interface << " does not exist" << std::endl;
+    close(sock);
+    return;
+  }
+
+  std::string ipAddress, subnetMask, gateway;
+  std::vector<std::string> dnsServers;
+
+  // Get IP address and subnet mask
+  getInterfaceDetails(interface, ipAddress, subnetMask);
+
+  // Get default gateway
+  getDefaultGateway(gateway);
+
+  // Get DNS servers
+  getDNSServers(dnsServers);
+
+
+  std::cout << "IP Address: " << ipAddress << std::endl;
+  std::cout << "Subnet Mask: " << subnetMask << std::endl;
+  std::cout << "Default Gateway: " << gateway << std::endl;
+  std::cout << "DNS Servers: ";
+
+  for (size_t i = 0; i < dnsServers.size(); ++i) {
+    std::cout << dnsServers[i];
+    if (i != dnsServers.size() - 1) {
+      std::cout << ", ";
+    }
+  }
+
+  std::cout << std::endl;
+
+  close(sock);
+}
+
 
 
 

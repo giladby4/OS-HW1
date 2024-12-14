@@ -7,7 +7,7 @@
 
 #define COMMAND_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
-#define MAX_SIZE (4096)
+#define BUFFER_SIZE (4096)
 using namespace std;
 class Command {
 protected:
