@@ -660,25 +660,35 @@ void executeWithBash(char const *cmd_line){
   strcpy(arguments,cmd_line);
   args[2]=arguments;
   args[3]=nullptr;
-  execv("/bin/bash",args);
+  if(execv("/bin/bash",args)==-1){
+      perror("smash error: exec failed");
+      exit(1);  // Exit if exec fails
+
+  }
   exit(1);
 }
 void executeNoBash(char const *cmd_line){
   char **args=new char *[COMMAND_MAX_ARGS];
   _parseCommandLine(cmd_line,args);
   string path=string("/bin/")+args[0];
+
   if (args[0][0] == '/' || args[0][0] == '.') {
     if (execv(args[0], args) == -1) {
       perror("smash error: exec failed");
-      exit(1);  // Exit if exec fails
+      exit(-1);  // Exit if exec fails
     }
   }
+
   else{
+              cout <<"here\n";
+
     if (execvp(args[0], args) == -1) {
       perror("smash error: exec failed");
-      exit(1);  // Exit if exec fails
+      exit(-1);  // Exit if exec fails
     }
   }
+          cout <<"here2\n";
+
   exit(1);
 }
 
@@ -692,7 +702,12 @@ void ExternalCommand::execute(){
   if(str_cmd.find('?') != std::string::npos || str_cmd.find('*') != std::string::npos){
     //Complex external command in Background
     if (_isBackgroundCommand(cmd_line)){
-     pid_t pid=fork();
+      size_t length = strlen(cmd_line) + 1; // +1 for the null terminator
+      char* buffer = new char[length];
+      strcpy(buffer, cmd_line);
+      _removeBackgroundSign(buffer);
+
+      pid_t pid=fork();
 
       if(pid==-1){
         perror("smash error: fork failed");
@@ -700,9 +715,12 @@ void ExternalCommand::execute(){
       }
       if(pid==0){
         setpgrp();
-        executeWithBash(cmd_line);
+        executeWithBash(buffer);
+        delete(buffer);
+
       }
       else{ //Parent not wating
+
         JobsList* jobs = SmallShell::getInstance().getJobsList();
         jobs->addJob(this,pid);
       } 
@@ -734,6 +752,10 @@ void ExternalCommand::execute(){
   else{   
     //Simple external command in Background
     if (_isBackgroundCommand(cmd_line)){
+      size_t length = strlen(cmd_line) + 1; // +1 for the null terminator
+      char* buffer = new char[length];
+      strcpy(buffer, cmd_line);
+      _removeBackgroundSign(buffer);
       pid_t pid=fork();
 
       if(pid==-1){
@@ -742,11 +764,14 @@ void ExternalCommand::execute(){
       }
       if(pid==0){
         setpgrp();
-        executeNoBash(cmd_line);
+        executeNoBash(buffer);
+        delete(buffer);
+
       }
       else{ //Parent not wating
         JobsList* jobs = SmallShell::getInstance().getJobsList();
         jobs->addJob(this,pid);
+
       }
 
     }
@@ -764,6 +789,8 @@ void ExternalCommand::execute(){
       }
       else{   //Parent
         pid_t pidStatus = waitpid(pid, NULL, 0);
+                  cout <<"here3\n";
+
         if (pidStatus == -1)
         {
           perror("smash error: waitpid failed");
