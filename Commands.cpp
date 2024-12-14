@@ -50,6 +50,24 @@ string _trim(const std::string &s) {
     return _rtrim(_ltrim(s));
 }
 
+void _removeBackgroundSign(char *cmd_line) {
+    const string str(cmd_line);
+    // find last character other than spaces
+    unsigned int idx = str.find_last_not_of(WHITESPACE);
+    // if all characters are spaces then return
+    if (idx == string::npos) {
+        return;
+    }
+    // if the command line does not end with & then return
+    if (cmd_line[idx] != '&') {
+        return;
+    }
+    // replace the & (background sign) with space and then remove all tailing spaces.
+    cmd_line[idx] = ' ';
+    // truncate the command line string up to the last non-space character
+    cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
+}
+
 int _parseCommandLine(const char *cmd_line, char **args) {
     FUNC_ENTRY()
     
@@ -75,23 +93,7 @@ bool _isBackgroundCommand(const char *cmd_line) {
 }
 
 
-void _removeBackgroundSign(char *cmd_line) {
-    const string str(cmd_line);
-    // find last character other than spaces
-    unsigned int idx = str.find_last_not_of(WHITESPACE);
-    // if all characters are spaces then return
-    if (idx == string::npos) {
-        return;
-    }
-    // if the command line does not end with & then return
-    if (cmd_line[idx] != '&') {
-        return;
-    }
-    // replace the & (background sign) with space and then remove all tailing spaces.
-    cmd_line[idx] = ' ';
-    // truncate the command line string up to the last non-space character
-    cmd_line[str.find_last_not_of(WHITESPACE, idx) + 1] = 0;
-}
+
 
  bool isNumber(const char *str) {
     // Check if the string is empty or contains non-digit characters
