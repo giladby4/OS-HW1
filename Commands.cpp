@@ -67,7 +67,7 @@ int _parseCommandLine(const char *cmd_line, char **args) {
     FUNC_EXIT()
 }
 
-bool _isBackgroundComamnd(const char *cmd_line) {
+bool _isBackgroundCommand(const char *cmd_line) {
     const string str(cmd_line);
     return str[str.find_last_not_of(WHITESPACE)] == '&';
 }
@@ -111,6 +111,10 @@ void SmallShell::printPrompt(){
     std::cout <<prompt<<"> ";
 
 }
+
+JobsList* SmallShell::getJobsList(){
+        return jobs;
+    }
 
 SmallShell::~SmallShell() {
 // TODO: add your implementation
@@ -252,12 +256,6 @@ string Command::printCommand(){
   return cmd_line;
 }
 
-/*
-bool Command::isAlias(){
-
-}
-*/
-
 BuiltInCommand::BuiltInCommand(const char *cmd_line):Command(cmd_line){}
 
 const char * getPwd(){
@@ -343,7 +341,7 @@ void ChangeDirCommand::execute(){
 
 // JobsList
 
-void JobsList::addJob(Command *cmd, int pid, bool isStopped){
+void JobsList::addJob(Command *cmd, pid_t pid, bool isStopped){
   removeFinishedJobs();
 
   int jobId=1;
@@ -545,7 +543,7 @@ void ForegroundCommand::execute(){
     }
 
     jobId = jobs-> getLastJob() -> jobId;   // Last job id
-    
+
   }
   else{   // There is a second argument
       try {
@@ -656,11 +654,17 @@ void executeNoBash(char const *cmd_line){
   _parseCommandLine(cmd_line,args);
   string path=string("/bin/")+args[0];
   if (args[0][0] == '/' || args[0][0] == '.') {
-    execv(args[0], args);  
-  } else {
-    execvp(args[0], args);
+    if (execv(args[0], args) == -1) {
+      perror("smash error: exec failed");
+      exit(1);  // Exit if exec fails
+    }
   }
-
+  else{
+    if (execvp(args[0], args) == -1) {
+      perror("smash error: exec failed");
+      exit(1);  // Exit if exec fails
+    }
+  }
   exit(1);
 }
 
@@ -669,9 +673,12 @@ ExternalCommand::ExternalCommand(char const *cmd_line, JobsList *jobs) : Command
 void ExternalCommand::execute(){
 
   string str_cmd(cmd_line);
+
+  //Complex external command: 
   if(str_cmd.find('?') != std::string::npos || str_cmd.find('*') != std::string::npos){
-    if (_isBackgroundComamnd(cmd_line)){
-     int pid=fork();
+    //Complex external command in Background
+    if (_isBackgroundCommand(cmd_line)){
+     pid_t pid=fork();
 
       if(pid==-1){
         perror("smash error: fork failed");
@@ -681,12 +688,14 @@ void ExternalCommand::execute(){
         setpgrp();
         executeWithBash(cmd_line);
       }
-      else{
-        this->jobs->addJob(this, pid,false);
+      else{ //Parent not wating
+        JobsList* jobs = SmallShell::getInstance().getJobsList();
+        jobs->addJob(this,pid);
       } 
     }
+    //Complex external command in Foreground
     else{
-      int pid=fork();
+      pid_t pid=fork();
 
       if(pid==-1){
         perror("smash error: fork failed");
@@ -696,18 +705,40 @@ void ExternalCommand::execute(){
         setpgrp();
         executeWithBash(cmd_line);
       }
-      else{
-        waitpid(pid, nullptr, 0);
-
+      else{ //Parent
+        pid_t pidStatus = waitpid(pid, NULL, 0);
+        if (pidStatus == -1)
+        {
+          perror("smash error: waitpid failed");
+          return;
+        }
       }
     }
   }
-  else{
-    if (_isBackgroundComamnd(cmd_line)){
+
+  //Simple external command:
+  else{   
+    //Simple external command in Background
+    if (_isBackgroundCommand(cmd_line)){
+      pid_t pid=fork();
+
+      if(pid==-1){
+        perror("smash error: fork failed");
+        return;
+      }
+      if(pid==0){
+        setpgrp();
+        executeNoBash(cmd_line);
+      }
+      else{ //Parent not wating
+        JobsList* jobs = SmallShell::getInstance().getJobsList();
+        jobs->addJob(this,pid);
+      }
 
     }
+    //Simple external command in Foreground
     else{
-      int pid=fork();
+      pid_t pid=fork();
       if(pid==-1){
 
         perror("smash error: fork failed");
@@ -717,9 +748,13 @@ void ExternalCommand::execute(){
         setpgrp();
         executeNoBash(cmd_line);
       }
-      else{
-        waitpid(pid, nullptr, 0);
-
+      else{   //Parent
+        pid_t pidStatus = waitpid(pid, NULL, 0);
+        if (pidStatus == -1)
+        {
+          perror("smash error: waitpid failed");
+          return;
+        }
       }
     }
   }
