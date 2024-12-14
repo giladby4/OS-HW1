@@ -299,6 +299,10 @@ public:
 
     void executeCommand(const char *cmd_line);
 
+    JobsList* getJobsList(){
+        return jobs;
+    }
+
     // TODO: add extra methods as needed
 };
 
