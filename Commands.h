@@ -216,8 +216,8 @@ public:
     }
 
     void execute() override;
+    void printTree(const std::string& path, int level = 0);
 
-    void printTree(const std::string& path, std::vector<std::string>& directories, std::vector<std::string>& files, int level = 0);
 };
 
 class WhoAmICommand : public Command {
@@ -270,6 +270,7 @@ private:
     char *plastPwd;
     JobsList * jobs;
     const char *prompt;
+    pid_t foreground;
     map <string,string>  aliases;
     SmallShell();
 
@@ -289,7 +290,12 @@ public:
     ~SmallShell();
 
     void executeCommand(const char *cmd_line);
-
+    void setForeground(pid_t pid){
+        foreground=pid;
+    }
+    pid_t getForeground(){
+        return foreground;
+    }
     JobsList* getJobsList();
     char* getPwd();
 

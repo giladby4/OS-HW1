@@ -112,7 +112,7 @@ bool _isBackgroundCommand(const char *cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h 
 
-SmallShell::SmallShell():plastPwd(nullptr) ,prompt("smash"){
+SmallShell::SmallShell():plastPwd(nullptr) ,prompt("smash"), foreground(0){
   JobsList *jobslist=new JobsList();
   jobs=jobslist;
 
@@ -193,6 +193,12 @@ Command *SmallShell::CreateCommand(const char *cmd_line) {
   }
   else if (firstWord.compare("listdir") == 0) {
     return new ListDirCommand(cmd_line);
+  }
+  else if (firstWord.compare("whoami") == 0) {
+    return new WhoAmICommand(cmd_line);
+  }
+    else if (firstWord.compare("netinfo") == 0) {
+    return new NetInfo(cmd_line);
   }
 
   else {
@@ -277,7 +283,7 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line):Command(cmd_line){}
 
 const char * getPwd(){
   const size_t size=1024;
-  char buffer[size];
+  static char buffer[size];
   return getcwd(buffer,size);
 }
 
@@ -741,12 +747,16 @@ void ExternalCommand::execute(){
         executeWithBash(cmd_line);
       }
       else{ //Parent
+        SmallShell::getInstance().setForeground(pid);
         pid_t pidStatus = waitpid(pid, NULL, 0);
+        SmallShell::getInstance().setForeground(0);
+
         if (pidStatus == -1)
         {
           perror("smash error: waitpid failed");
           return;
         }
+
       }
     }
   }
@@ -791,13 +801,17 @@ void ExternalCommand::execute(){
         executeNoBash(cmd_line);
       }
       else{   //Parent
+        SmallShell::getInstance().setForeground(pid);
+
         pid_t pidStatus = waitpid(pid, NULL, 0);
+        SmallShell::getInstance().setForeground(0);
 
         if (pidStatus == -1)
         {
           perror("smash error: waitpid failed");
           return;
         }
+
       }
     }
   }
@@ -806,7 +820,7 @@ void ExternalCommand::execute(){
 ListDirCommand::ListDirCommand(const char *cmd_line):Command(cmd_line){};
 
 //Helper function to print the directory tree
-void ListDirCommand::printTree(const std::string& path, std::vector<std::string>& directories, std::vector<std::string>& files, int level) {
+/*void ListDirCommand::printTree(const std::string& path, std::vector<std::string>& directories, std::vector<std::string>& files, int level) {
   // Print directories and go Recursively to subdirectories
   for (const auto& dir : directories) {
     std::cout << std::string(level, '\t') << dir << std::endl;
@@ -839,18 +853,31 @@ void ListDirCommand::printTree(const std::string& path, std::vector<std::string>
         }
 
         for (int i = 0; i < sizeToRead;) {
-          struct dirent *entry = (struct dirent *)(bufferRead + i);
-          std::string name = entry->d_name;
+            // Entry pointer for the current position in buffer
+            char *entry = bufferRead + i;
 
-          if (entry->d_type == DT_DIR) {
-            subDirectories.push_back(name);  // Add subdirectories
-          } 
-          else if (entry->d_type == DT_REG) {
-            subFiles.push_back(name);  // Add files
-          }
+            // Extract d_reclen (record length)
+            unsigned short d_reclen = *(unsigned short *)(entry + offsetof(struct dirent, d_reclen));
 
-          i += entry->d_reclen;  // Move to the next entry
-        }
+            // Extract d_name (filename starts right after standard fields)
+            char *d_name = entry + offsetof(struct dirent, d_name);
+            std::string name(d_name);
+
+            // Debugging: Print the extracted name
+            std::cout << "Extracted name: " << name << std::endl;
+
+            // Extract d_type (last byte of the entry)
+            char d_type = *(entry + d_reclen - 1);
+
+            // Separate files and directories
+            if (d_type == DT_DIR) {
+                directories.push_back(name);
+            } else if (d_type == DT_REG) {
+                files.push_back(name);
+            }
+
+            // Move to the next entry
+            i += d_reclen;
       }
 
       close(subFd);
@@ -869,6 +896,74 @@ void ListDirCommand::printTree(const std::string& path, std::vector<std::string>
   }
 }
 
+}*/
+
+void ListDirCommand::printTree(const std::string& path,int level) {
+  vector<pair<std::string,char>> printList;
+  int fd = open(path.c_str(), O_RDONLY | O_DIRECTORY);
+  if (fd == -1) 
+  {
+    perror("smash error: open failed");
+    return;
+  }
+  
+  char bufferRead[BUFFER_SIZE];
+  ssize_t sizeToRead;
+
+  while (true) {
+      // SYS_getdents - syscall used to read directory entries from a file descriptor.
+    sizeToRead = syscall(SYS_getdents, fd, bufferRead, sizeof(bufferRead));
+    if (sizeToRead == -1) {
+      perror("smash error: getdents failed");
+      break;
+      }
+    else if (sizeToRead == 0) {
+      break;
+      }
+
+    for (int i = 0; i < sizeToRead;) {
+            // Entry pointer for the current position in buffer
+            char *entry = bufferRead + i;
+
+            // Extract d_reclen (record length)
+            unsigned short d_reclen = *(unsigned short *)(entry + offsetof(struct dirent, d_reclen));
+
+            // Extract d_name (filename starts right after standard fields)
+            char *d_name = entry + offsetof(struct dirent, d_name)-1;
+            std::string name(d_name);
+
+            // Debugging: Print the extracted name
+            //std::cout << "Extracted name: " << name << std::endl;
+
+            // Extract d_type (last byte of the entry)
+            char d_type = *(entry + d_reclen - 1);
+
+            // Separate files and directories
+            if(name != "." && name != "..")
+            printList.push_back({name,d_type});
+
+            // Move to the next entry
+            i += d_reclen;
+    }
+  }
+  std::sort(printList.begin(), printList.end(),
+          [](const std::pair<std::string, char> &a, const std::pair<std::string, char> &b) {
+              return a.first < b.first;  // Compare names
+          });
+  for (const auto& file : printList) {
+    for(int i=0;i<level;i++)
+      cout<<"\t";
+    cout << file.first  << std::endl;
+    if (file.second==DT_DIR)
+    
+      printTree(path+"/"+file.first,level+1);
+  }
+  
+  close(fd);
+}
+
+
+
 void ListDirCommand::execute(){
 
   std::string pathToDir="";
@@ -884,14 +979,13 @@ void ListDirCommand::execute(){
     return;
   }
   else if(argc == 1){
-    pathToDir = SmallShell::getInstance().getPwd();
+    pathToDir = getPwd();
   }
   else{
     _removeBackgroundSign(args[1]);
     pathToDir = args[1];
   }
-
-  int fd = open(pathToDir.c_str(), O_RDONLY | O_DIRECTORY);
+  /*int fd = open(pathToDir.c_str(), O_RDONLY | O_DIRECTORY);
   if (fd == -1) 
   {
     perror("smash error: open failed");
@@ -902,45 +996,60 @@ void ListDirCommand::execute(){
   ssize_t sizeToRead;
 
   while (true) {
-    // SYS_getdents - syscall used to read directory entries from a file descriptor.
+      // SYS_getdents - syscall used to read directory entries from a file descriptor.
     sizeToRead = syscall(SYS_getdents, fd, bufferRead, sizeof(bufferRead));
-    if (sizeToRead == -1){
+    if (sizeToRead == -1) {
       perror("smash error: getdents failed");
       break;
-    }
-    else if(sizeToRead == 0){
+      }
+    else if (sizeToRead == 0) {
       break;
-    }
-    
-    for (int i = 0 ; i < sizeToRead ;){
-      struct dirent *entry = (struct dirent *)(bufferRead + i);
-      std::string name = entry->d_name;
-
-      //We will separate files and directories
-
-      if (entry->d_type == DT_DIR) {       //Its directory
-        directories.push_back(name);  
-      } 
-      else if (entry->d_type == DT_REG) {  //Its file
-        files.push_back(name);
       }
 
-      i += entry->d_reclen;  // Move to the next entry
+    for (int i = 0; i < sizeToRead;) {
+            // Entry pointer for the current position in buffer
+            char *entry = bufferRead + i;
+
+            // Extract d_reclen (record length)
+            unsigned short d_reclen = *(unsigned short *)(entry + offsetof(struct dirent, d_reclen));
+
+            // Extract d_name (filename starts right after standard fields)
+            char *d_name = entry + offsetof(struct dirent, d_name);
+            std::string name(d_name);
+
+            // Debugging: Print the extracted name
+            std::cout << "Extracted name: " << name << std::endl;
+
+            // Extract d_type (last byte of the entry)
+            char d_type = *(entry + d_reclen - 1);
+
+            // Separate files and directories
+            if (d_type == DT_DIR) {
+                directories.push_back(name);
+            } else if (d_type == DT_REG) {
+                files.push_back(name);
+            }
+
+            // Move to the next entry
+            i += d_reclen;
     }
   }
+
+  
+
+  
   close(fd);
 
   std::sort(directories.begin(), directories.end());
   std::sort(files.begin(), files.end());
-
-  printTree(pathToDir, directories, files);
+/*/
+  printTree(pathToDir,0);
 }
 
 
 WhoAmICommand::WhoAmICommand(const char *cmd_line): Command(cmd_line){};
 
 void WhoAmICommand::execute(){
-
   uid_t uid = getuid();
   int fd = open("/etc/passwd", O_RDONLY);
 
@@ -1079,7 +1188,7 @@ void getDefaultGateway(std::string &gateway) {
   while (std::getline(ss, line)) {
     std::istringstream lineStream(line);
     std::string iface, destination, gatewayHex;
-    unsigned int dest, gw;
+    unsigned int gw;
 
     lineStream >> iface >> destination >> gatewayHex;
 

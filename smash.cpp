@@ -6,15 +6,12 @@
 #include "signals.h"
 
 
-void test(){
-
-}
+//void test(){}
 
 int main(int argc, char *argv[]) {
     if (signal(SIGINT, ctrlCHandler) == SIG_ERR) {
         perror("smash error: failed to set ctrl-C handler");
     }
-
     SmallShell &smash = SmallShell::getInstance();
     //test();
     while (1) {
