@@ -112,7 +112,9 @@ bool _isBackgroundCommand(const char *cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h 
 
-SmallShell::SmallShell():plastPwd(nullptr),prompt("smash") {
+SmallShell::SmallShell():plastPwd(nullptr) ,prompt("smash"){
+  JobsList *jobslist=new JobsList();
+  jobs=jobslist;
 
 }
 void SmallShell::printPrompt(){
@@ -122,6 +124,7 @@ void SmallShell::printPrompt(){
 }
 
 JobsList* SmallShell::getJobsList(){
+  
   return jobs;
 }
 
@@ -680,14 +683,12 @@ void executeNoBash(char const *cmd_line){
   }
 
   else{
-              cout <<"here\n";
 
     if (execvp(args[0], args) == -1) {
       perror("smash error: exec failed");
       exit(-1);  // Exit if exec fails
     }
   }
-          cout <<"here2\n";
 
   exit(1);
 }
