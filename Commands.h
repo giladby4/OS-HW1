@@ -267,7 +267,6 @@ public:
 
 class SmallShell {
 private:
-    const int MAX_ARGS=100;
     char *plastPwd;
     JobsList * jobs;
     const char *prompt;

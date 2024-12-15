@@ -472,14 +472,15 @@ QuitCommand::QuitCommand(char const *cmd_line, JobsList *jobs) : BuiltInCommand(
 void QuitCommand::execute(){
   char **args=new char *[COMMAND_MAX_ARGS];
   _parseCommandLine(cmd_line,args);
-  _removeBackgroundSign(args[1]);
+  if(args[1])
+    _removeBackgroundSign(args[1]);
 
-  if (strcmp(args[1], "kill") == 0) {
+  if (args[1]&&strcmp(args[1], "kill") == 0) {
     jobs->removeFinishedJobs();
     jobs->printJobsForQuitFunc();
     jobs->killAllJobs();
   }
-
+  exit(1);
 }
 
 
@@ -581,7 +582,7 @@ void ForegroundCommand::execute(){
   JobsList::JobEntry* job = jobs -> getJobById(jobId);
 
   if (job == nullptr){
-    std::cerr << "smash error: fg: job-id " << jobId << "does not exist" << std::endl;
+    std::cerr << "smash error: fg: job-id " << jobId << " does not exist" << std::endl;
     delete[] args;
     return;
   }
@@ -589,6 +590,7 @@ void ForegroundCommand::execute(){
   std::cout << job -> commandString << " " << pid << std::endl;
 
   jobs -> removeJobById(jobId);
+  waitpid(pid,NULL,0);
 }
 
 
@@ -790,7 +792,6 @@ void ExternalCommand::execute(){
       }
       else{   //Parent
         pid_t pidStatus = waitpid(pid, NULL, 0);
-                  cout <<"here3\n";
 
         if (pidStatus == -1)
         {
